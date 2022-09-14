@@ -1,92 +1,118 @@
 package main
 
 import (
-    "fmt"
-    "time"
+	"fmt"
+	"time"
 )
 
 type fork struct {
-    index int
-    ch chan bool
+	index  int
+	isUsed bool
+
+	inChannel     chan int
+	rightPhilChan chan bool
+	leftPhilChan  chan bool
 }
 
 type phil struct {
-    index int
-    
-    leftCh chan bool
-    rightCh chan bool
-    
-    forkR fork
-    forkL fork
+	index int
+
+	leftForkOut  chan int
+	rightForkOut chan int
+	leftForkIn   chan bool
+	rightForkIn  chan bool
 }
 
 func main() {
-    chf0 := make(chan bool)
-    chf1 := make(chan bool)
-    chf2 := make(chan bool)
-    chf3 := make(chan bool)
-    chf4 := make(chan bool)
-    
-    fmt.Println("some")
-    
-    chans := [5] chan bool {chf0, chf1, chf2, chf3, chf4}
-    
-    var forks = new([5]fork)
-    for i:=0; i<5; i++ {
-        var temp fork
-        temp.index = i
-        temp.ch = chans[i]
-        forks[i] = temp
-        go forkCom(temp)
-    }
-    
-    for i:=0; i<5; i++ {
-        var temp phil
-        temp.index = i
-        temp.leftCh = forks[(i+1)%5].ch
-        temp.rightCh = forks[i].ch
-        
-        temp.forkL = forks[(i+1)%5]
-        temp.forkR = forks[i]
-        go philEat(temp)
-    }
-    time.Sleep(6 * time.Second)
+	fork0in := make(chan int)
+	fork1in := make(chan int)
+	fork2in := make(chan int)
+	fork3in := make(chan int)
+	fork4in := make(chan int)
+
+	fork0leftOut := make(chan bool)
+	fork1leftOut := make(chan bool)
+	fork2leftOut := make(chan bool)
+	fork3leftOut := make(chan bool)
+	fork4leftOut := make(chan bool)
+	fork0RightOut := make(chan bool)
+	fork1RightOut := make(chan bool)
+	fork2RightOut := make(chan bool)
+	fork3RightOut := make(chan bool)
+	fork4RightOut := make(chan bool)
+
+	inChannels := [5]chan int{fork0in, fork1in, fork2in, fork3in, fork4in}
+	leftOutChannels := [5]chan bool{fork0leftOut, fork1leftOut, fork2leftOut, fork3leftOut, fork4leftOut}
+	rightOutChannels := [5]chan bool{fork0RightOut, fork1RightOut, fork2RightOut, fork3RightOut, fork4RightOut}
+
+	for i := 0; i < 5; i++ {
+		var temp fork
+		temp.index = i
+		temp.inChannel = inChannels[i]
+		temp.rightPhilChan = rightOutChannels[i]
+		temp.leftPhilChan = leftOutChannels[i]
+
+		go forkCom(temp)
+	}
+
+	for i := 0; i < 5; i++ {
+		var temp phil
+		temp.index = i
+
+		temp.rightForkOut = inChannels[i]
+		temp.leftForkOut = inChannels[(i+1)%5]
+
+		temp.rightForkIn = leftOutChannels[i]
+		temp.leftForkIn = rightOutChannels[(i+1)%5]
+
+		go philEat(temp)
+	}
+	time.Sleep(6 * time.Second)
 }
 
 func philEat(p phil) {
-    for i:=0; i<3; i++ {
-        for true {
-            c0 := <- p.leftCh
-            c1 := <- p.rightCh
-            if (c0 == true && c1 == true) {
-                p.leftCh <- true
-                p.rightCh <- true
-                fmt.Println("Philosipher", p.index, "has eaten", i+1, "times")
 
-                p.leftCh <- false
-                p.rightCh <- false
-                break
-            } else {
-                fmt.Println("Philosipher", p.index, "is thinking")
+	for i := 0; i < 3; i++ {
+		for i < 3 {
+			p.rightForkOut <- p.index
+			m0 := <-p.rightForkIn
+			if m0 == true {
+				p.leftForkOut <- p.index
+				m1 := <-p.leftForkIn
+				if m1 == true {
+					fmt.Println("Philosopher", p.index, "has eaten", i+1, "times-----------------------------")
+					i = i + 1
+					p.leftForkOut <- 10
 
-            }
-        }
-    }
+				}
+				p.rightForkOut <- 10
+			}
+			fmt.Println("Philosopher", p.index, "is thinking")
+		}
+	}
 }
 
 func forkCom(f fork) {
-    for true {
-        f.ch <- true
-        r := <- f.ch
-        if (r == true) {
-            fmt.Println("\t", f.index, "is being used")
-            for true {
-                f.ch <- false
-                r := <- f.ch
-                if (r == false) {
-                    break
-                }
-            }
-        }
-    }
+	for true {
+		m0 := <-f.inChannel
+		if f.index == (m0+1)%5 {
+			if f.isUsed {
+				f.rightPhilChan <- false
+			} else {
+				f.rightPhilChan <- true
+				f.isUsed = true
+			}
+		}
+		if f.index == (m0) {
+			if f.isUsed {
+				f.leftPhilChan <- false
+			} else {
+				f.leftPhilChan <- true
+				f.isUsed = true
+			}
+		}
+		if 10 == m0 {
+			f.isUsed = false
+		}
+	}
 }
