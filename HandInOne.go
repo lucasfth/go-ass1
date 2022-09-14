@@ -67,52 +67,55 @@ func main() {
 
 		go philEat(temp)
 	}
-	time.Sleep(6 * time.Second)
+
+	time.Sleep(12 * time.Second)
 }
 
 func philEat(p phil) {
+	var timesEaten int = 1
 
-	for i := 0; i < 3; i++ {
-		for i < 3 {
-			p.rightForkOut <- p.index
-			m0 := <-p.rightForkIn
-			if m0 == true {
-				p.leftForkOut <- p.index
-				m1 := <-p.leftForkIn
-				if m1 == true {
-					fmt.Println("Philosopher", p.index, "has eaten", i+1, "times-----------------------------")
-					i = i + 1
-					p.leftForkOut <- 10
+	for timesEaten < 4 {
 
-				}
-				p.rightForkOut <- 10
+		p.rightForkOut <- p.index
+		m0 := <-p.rightForkIn
+		if m0 == true {
+			p.leftForkOut <- p.index
+			m1 := <-p.leftForkIn
+			if m1 == true {
+				fmt.Println("Philosopher", p.index, "has eaten", timesEaten, "times-----------------------------")
+				timesEaten = timesEaten + 1
+				p.leftForkOut <- 10
 			}
-			fmt.Println("Philosopher", p.index, "is thinking")
+			p.rightForkOut <- 10
 		}
+		fmt.Println("Philosopher", p.index, "is thinking")
 	}
 }
 
 func forkCom(f fork) {
 	for true {
 		m0 := <-f.inChannel
-		if f.index == (m0+1)%5 {
-			if f.isUsed {
-				f.rightPhilChan <- false
-			} else {
-				f.rightPhilChan <- true
-				f.isUsed = true
-			}
-		}
 		if f.index == (m0) {
 			if f.isUsed {
 				f.leftPhilChan <- false
 			} else {
-				f.leftPhilChan <- true
 				f.isUsed = true
+				f.leftPhilChan <- true
+
+			}
+		}
+		if f.index == (m0+1)%5 {
+			if f.isUsed {
+				f.rightPhilChan <- false
+			} else {
+				f.isUsed = true
+				f.rightPhilChan <- true
+
 			}
 		}
 		if 10 == m0 {
 			f.isUsed = false
+			fmt.Println("\tFork:", f.index, f.isUsed)
 		}
 	}
 }
