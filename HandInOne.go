@@ -41,16 +41,18 @@ func main() {
 	fork3RightOut := make(chan bool)
 	fork4RightOut := make(chan bool)
 
-	inChannels := [5]chan int{fork0in, fork1in, fork2in, fork3in, fork4in}
-	leftOutChannels := [5]chan bool{fork0leftOut, fork1leftOut, fork2leftOut, fork3leftOut, fork4leftOut}
-	rightOutChannels := [5]chan bool{fork0RightOut, fork1RightOut, fork2RightOut, fork3RightOut, fork4RightOut}
+	inChannels := [5]chan int{fork0in, fork1in, fork2in, fork3in, fork4in} 
+	leftOutChannels := [5]chan bool{fork0leftOut, fork1leftOut, fork2leftOut, fork3leftOut, fork4leftOut} 
+	rightOutChannels := [5]chan bool{fork0RightOut, fork1RightOut, fork2RightOut, fork3RightOut, fork4RightOut} 
 
 	for i := 0; i < 5; i++ {
 		var temp fork
+		temp.isUsed = false
 		temp.index = i
 		temp.inChannel = inChannels[i]
 		temp.rightPhilChan = rightOutChannels[i]
 		temp.leftPhilChan = leftOutChannels[i]
+		//fmt.Println("fork", temp.index, "in", inChannels[i], "right", rightOutChannels[i], "left", leftOutChannels[i])
 
 		go forkCom(temp)
 	}
@@ -64,7 +66,8 @@ func main() {
 
 		temp.rightForkIn = leftOutChannels[i]
 		temp.leftForkIn = rightOutChannels[(i+1)%5]
-
+		
+		//fmt.Println("phil", temp.index, "inR", leftOutChannels[i], "inL", rightOutChannels[(i+1)%5], "outR", inChannels[i], "outL", inChannels[(i+1)%5])
 		go philEat(temp)
 	}
 
@@ -73,49 +76,54 @@ func main() {
 
 func philEat(p phil) {
 	var timesEaten int = 1
+	var numberOfIterations int = 0
 
 	for timesEaten < 4 {
+	    //fmt.Println("\t\t\t\tby f", p.index, "i", numberOfIterations)
 
 		p.rightForkOut <- p.index
-		m0 := <-p.rightForkIn
-		if m0 == true {
+		mRight := <-p.rightForkIn
+		if (mRight == true) {
 			p.leftForkOut <- p.index
-			m1 := <-p.leftForkIn
-			if m1 == true {
-				fmt.Println("Philosopher", p.index, "has eaten", timesEaten, "times-----------------------------")
-				timesEaten = timesEaten + 1
+			mLeft := <-p.leftForkIn
+			if (mLeft == true){
+				fmt.Println("EAT p", p.index, "times", timesEaten, "--------------------")
+				timesEaten++
 				p.leftForkOut <- 10
 			}
 			p.rightForkOut <- 10
 		}
-		fmt.Println("Philosopher", p.index, "is thinking")
+		//fmt.Println("THINK p", p.index, "------")
+		time.Sleep(5 * time.Millisecond)
+		numberOfIterations++
 	}
 }
 
 func forkCom(f fork) {
 	for true {
-		m0 := <-f.inChannel
-		if f.index == (m0) {
-			if f.isUsed {
+		m := <-f.inChannel
+		if (f.index == m) {
+			if (f.isUsed) {
 				f.leftPhilChan <- false
+				fmt.Println("\tREQ f", f.index, "by p", m, "DENIED")
 			} else {
 				f.isUsed = true
 				f.leftPhilChan <- true
+				fmt.Println("\tREQ f", f.index, "by p", m, "GRANTED")
 
 			}
-		}
-		if f.index == (m0+1)%5 {
+		} else if (f.index == (m+1)%5) {
 			if f.isUsed {
 				f.rightPhilChan <- false
+				fmt.Println("\tREQ f", f.index, "by p", m, "DENIED")
 			} else {
 				f.isUsed = true
 				f.rightPhilChan <- true
-
+				fmt.Println("\tREQ f", f.index, "by p", m, "GRANTED")
 			}
-		}
-		if 10 == m0 {
+		}else if (m == 10) {
 			f.isUsed = false
-			fmt.Println("\tFork:", f.index, f.isUsed)
+			fmt.Println("\t\tREL f", f.index)
 		}
 	}
 }
