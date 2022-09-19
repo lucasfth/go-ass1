@@ -66,16 +66,15 @@ func main() {
 		temp.leftForkIn = rightOutChannels[(i+1)%5]
 
 		go philEat(temp)
+
 	}
 
-	time.Sleep(12 * time.Second)
+	time.Sleep(45 * time.Second)
 }
 
 func philEat(p phil) {
-	var timesEaten int = 1
-
-	for timesEaten < 4 {
-
+	var timesEaten = 1
+	for i := 0; i < 3; i++ {
 		p.rightForkOut <- p.index
 		m0 := <-p.rightForkIn
 		if m0 == true {
@@ -90,13 +89,18 @@ func philEat(p phil) {
 		}
 		fmt.Println("Philosopher", p.index, "is thinking")
 	}
+	time.Sleep(3 * time.Second)
 }
 
 func forkCom(f fork) {
 	for true {
 		m0 := <-f.inChannel
+
+		if 10 == (m0) {
+			f.isUsed = false
+		}
 		if f.index == (m0) {
-			if f.isUsed {
+			if f.isUsed == true {
 				f.leftPhilChan <- false
 			} else {
 				f.isUsed = true
@@ -105,17 +109,13 @@ func forkCom(f fork) {
 			}
 		}
 		if f.index == (m0+1)%5 {
-			if f.isUsed {
+			if f.isUsed == true {
 				f.rightPhilChan <- false
 			} else {
 				f.isUsed = true
 				f.rightPhilChan <- true
-
 			}
 		}
-		if 10 == m0 {
-			f.isUsed = false
-			fmt.Println("\tFork:", f.index, f.isUsed)
-		}
+
 	}
 }
