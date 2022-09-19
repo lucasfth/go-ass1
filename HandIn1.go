@@ -27,22 +27,27 @@ func main() {
 
 func goEat(index int, rC chan int, lC chan int) {
     var i int = 0
+    
     for i < 3 {
-        rC <- index
-        rM := <- rC
-        if (rM == index) {
-            lC <- index
-            lM := <- lC
-            if (lM == index) {
-                fmt.Println("Phil", index, "eaten", i+1, "time(s)\t\t\t", i+1)
-                i++
-                time.Sleep(5 * time.Millisecond)
-                lC <- 10
-            }
-            rC <- 10
+        fmt.Println("Phil", index, "is thinking")
+        time.Sleep(2 * time.Millisecond)
+        for true {
+            rC <- index
+            rM := <- rC
+            if (rM == index) {
+                lC <- index
+                lM := <- lC
+                if (lM == index) {
+                    fmt.Println("Phil", index, "eaten", i+1, "time(s)\t\t\t", i+1)
+                    i++
+                    lC <- 10
+                    rC <- 10
+                    time.Sleep(5 * time.Millisecond)
+                    break
+                }
+                rC <- 10
+            } 
         }
-        //fmt.Println("Phil", index, "is thinking")
-        time.Sleep(5 * time.Millisecond)
     }
 }
 
@@ -52,6 +57,7 @@ func getUsed(index int, c chan int) {
     for true {
         m := <- c
         if (m == 10) {
+            time.Sleep(3 * time.Millisecond)
             isUsed = false
             //fmt.Println("Fork", index, "is free")
         } else if (!isUsed ) {
