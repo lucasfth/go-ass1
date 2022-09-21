@@ -5,14 +5,21 @@ import (
 	"time"
 )
 
+// REPRESENTING A FORK - THE FORK HAS A NAME, ONE CHANNEL "GOING OUT" TO THE PHILOSOPHERS WHO CAN USE IT
+// AND TWO CHANNELS "COMING IN", ONE FROM EACH PHILOSOPHER WHO CAN USE IT
+// THE CHANNELS ARE USED TO COMMUNICATE AVAILABILITY - THE FORK WILL USE THE CHANNEL GOING OUT WHEN IT IS AVAILABLE
+// AND IT WILL RECEIVE A STATEMENT COMING IN WHEN IT IS AVAILABLE AGAIN AND BEEN "RETURNED" BY THE PHILOSOPHER
 type Forks struct {
 	name     string
-	inUse    bool
 	outChan  chan string
 	leftCin  chan string
 	rightCin chan string
 }
 
+// REPRESENTING A PHILOSOPHER
+// THE PHILOSOPHER IS EITHER LEFT OR RIGHT HANDED; DECIDING HOW HE WILL PREFER CHOOSING THE FIRST FORK
+// THEY HAVE TWO CHANNELS GOING OUT AND TWO CHANNELS COMING IN FROM THE FORKS THAT THEY CAN USE
+// THESE CHANNELS ARE DESCRIBED ABOVE
 type Phils struct {
 	name       string
 	leftHanded bool
@@ -22,31 +29,35 @@ type Phils struct {
 	rightCout  chan string
 }
 
-// FUNC TO CREATE PHILS
-func createPhils(name string, lh bool, l chan string, r chan string, li chan string, ri chan string) Phils {
-	phil := Phils{name, lh, r, l, ri, li}
-	return phil
+// FUNCTION TO CREATE PHILOSOPHERS
+func createPhils(name string, leftHanded bool, leftChannelIn chan string, rightChannelIn chan string, leftChannelOut chan string, rightChannelOut chan string) Phils {
+	philosopher := Phils{name, leftHanded, rightChannelIn, leftChannelIn, rightChannelOut, leftChannelOut}
+	return philosopher
 }
 
-// FUNC TO CREATE FORKS
+// FUNCTION TO CREATE FORKS
 func createForks(name string) Forks {
-	outerChan := make(chan string)
-	leftCin := make(chan string)
-	rightCin := make(chan string)
-	fork := Forks{name, false, outerChan, leftCin, rightCin}
+	outChan := make(chan string)
+	leftChannelIn := make(chan string)
+	rightChannelIn := make(chan string)
+	fork := Forks{name, outChan, leftChannelIn, rightChannelIn}
 	return fork
 }
 
-// START THE DINING
+// START THE DINING PROCESS
 func (phil Phils) startDining() {
 	fmt.Println(phil.name, "has sat down at the table")
 	time.Sleep(1 * time.Second)
 	for i := 0; i < 3; i++ {
 		phil.requestFork(i + 1)
 	}
+	fmt.Println("____________________________________", phil.name, "has finished eatings and left the table", "____________________________________________________")
 }
 
 // PLACE FORK AT TABLE
+// SENDING OUT AVAILABLEBILITY
+// CONTINOUSLY WAITING FOR A RESPONSE FROM PHILOSOPHERS RETURNING IT AND THEN IT WILL SEND OUT AGAIN THAT IT IS ABVAILABLE
+// THE SELECT STATEMENT MAKES SURE THAT THERE IS NO DEADLOCK FOR THE FORKS JUST WAITING FOR ONE PHILOSOPHER WHILE THE OTHER ACTUALLY HAS IT
 func (fork Forks) placeForks() {
 	fmt.Println(fork.name, "has been placed on the table")
 	fork.outChan <- fork.name
@@ -60,14 +71,11 @@ func (fork Forks) placeForks() {
 	}
 }
 
-/*
-PHILOSOPHERS REQUESTING FORKS
-
-MAKING TWO PHILOSOPHERS RIGHTHANDED - WHICH MEANS THE PHILOSOPHERS WILL TRY AND GRAB WITH THEIR RIGHT HAND FIRST -  AND ADDING 3 SECONDS SLEEP TO THEM
-WHILE THE OTHER THREE ARE LEFTHANDED - WHICH MEANS THE PHILOSOPHERS WILL TRY AND GRAB WITH THEIR LEFT HAND FIRST - WITH NO SLEEP
-MAKES SURE THAT THERE IS NEVER A DEADLOCK. THE RIGHTHANDED PHILOSOPHERS WILL ALWAYS HAVE TO WAIT FOR THE LEFTHANDED TO FINISH UP FIRST IN RANDOM ORDER
-SO THEY WILL SIT BY AND WAIT FOR THE LEFTHANDED TO DROP THEIR FORK
-*/
+// PHILOSOPHERS REQUESTING FORKS
+// MAKING TWO PHILOSOPHERS RIGHTHANDED - WHICH MEANS THE PHILOSOPHERS WILL TRY AND GRAB THE FORK TO THE RIGHT SIDE FIRST -  AND ADDING 3 SECONDS SLEEP TO THEM
+// WHILE THE OTHER THREE ARE LEFTHANDED - WHICH MEANS THE PHILOSOPHERS WILL TRY AND GRAB THE FORK TO THE LEFT FIRST - WITH NO SLEEP TIME
+// MAKES SURE THAT THERE IS NEVER A DEADLOCK. THE RIGHTHANDED PHILOSOPHERS WILL ALWAYS HAVE TO WAIT FOR THE LEFTHANDED TO FINISH UP FIRST THE FIRST TIME THE FUNCTION IS REACHED
+// AFTER THIS THE SELECT STAEMENT WILL MAKE SURE THERE IS NEVER A DEADLOCK
 func (phil Phils) requestFork(i int) {
 	if phil.leftHanded {
 		lh := <-phil.leftCin
@@ -81,6 +89,7 @@ func (phil Phils) requestFork(i int) {
 	}
 }
 
+// PRINT EAT
 func (phil Phils) eat(lh string, rh string, i int) {
 	time.Sleep(3 * time.Second)
 	fmt.Println(phil.name, "is eating for the", i, "time")
@@ -88,20 +97,23 @@ func (phil Phils) eat(lh string, rh string, i int) {
 }
 
 // THE PHILOSOPHERS MAKES THE FORKS AVAILABLE FOR USE AGIAN FOR OTHER PHILOSOPHERS
+// BY SENDING A STATEMENT BACK TO THE FORK BY A CHANNEL, THAT IT IS AVAILABLE
 func (phil Phils) releaseFork(lh string, rh string) {
 	phil.think()
 	phil.leftCout <- lh
 	phil.rightCout <- rh
 }
 
-// PHILOSOPHERS THINKS
+// PRINT THINKS
 func (phil Phils) think() {
 	fmt.Println(phil.name, "is thinking")
 }
 
 func main() {
+	// NAMES FOR FORKS AND PHILOSOPHERS
 	namesP := []string{"phil0", "phil1", "phil2", "phil3", "phil4"}
 	namesF := []string{"Fork0", "Fork1", "Fork2", "Fork3", "Fork4"}
+
 	Philosophers := make([]Phils, 5)
 	Forks := make([]Forks, 5)
 
@@ -121,16 +133,16 @@ func main() {
 		}
 	}
 
+	//GOROUTINES ARE STARTED HERE FOR PHILOSOPHERS
 	for i := 0; i < 5; i++ {
 		go Philosophers[i].startDining()
 	}
 
 	time.Sleep(3 * time.Second)
 
+	//GOROUTINES FOR FORKS ARE STARTED HERE
 	for i := 0; i < 5; i++ {
 		go Forks[i].placeForks()
 	}
-
 	time.Sleep(45 * time.Second)
-
 }
